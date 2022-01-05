@@ -22,7 +22,7 @@ type InputNode struct {
 func (i *InputNode) ToString() string {
 	str := fmt.Sprintf("-i %v", i.InputName)
 	if i.Offset != nil {
-		str = fmt.Sprintf("-ss %v %v", *i.Offset, str)
+		str = fmt.Sprintf("-ss %v %v", fmtDuration(*i.Offset), str)
 	}
 	if i.Len != nil {
 		str = fmt.Sprintf("-t %v %v", fmtDuration(*i.Len), str)
@@ -48,7 +48,7 @@ func NewInputNode(name string, len, offset *time.Duration) *InputNode {
 	}
 }
 
-// ISelectStreamNode is still an IInputNode but it is combined with another IInputNode to select a specific stream
+// ISelectStreamNode is still an IInputNode, but it is combined with another IInputNode to select a specific stream
 // from the input
 type ISelectStreamNode interface {
 	INode

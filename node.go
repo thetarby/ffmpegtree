@@ -35,26 +35,28 @@ func NewBaseNode(children []INode) BaseNode {
 	}
 }
 
-func GetDepending(t INode) map[INode][]INode {
-	res := make(map[INode][]INode)
+func GetDependents(t INode) *DependentsMap {
+	res := NewDependentsMap()
 	visited := make(map[string]bool)
-	getDepending(t, res, visited)
+	getDependents(t, res, visited)
 	return res
 }
 
-func getDepending(t INode, acc map[INode][]INode, visited map[string]bool) {
+func getDependents(t INode, acc *DependentsMap, visited map[string]bool) {
 	if visited[t.GetID()] {
 		return
 	}
 	visited[t.GetID()] = true
 
 	for _, node := range t.GetInputs() {
-		_, ok := acc[node]
+		val, ok := acc.GetAndCheck(node)
 		if !ok {
-			acc[node] = make([]INode, 0)
+			acc.Set(node, make([]INode, 0))
+			val, _ = acc.GetAndCheck(node)
 		}
-		acc[node] = append(acc[node], t)
+		val = append(val, t)
+		acc.Set(node, val)
 
-		getDepending(node, acc, visited)
+		getDependents(node, acc, visited)
 	}
 }
