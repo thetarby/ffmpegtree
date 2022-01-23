@@ -1,0 +1,5 @@
+FROM python:3.9
+
+RUN apt-get update && apt-get install -y python3-opencv
+RUN pip install opencv-python==4.5.5.62
+RUN pip install scikit-image==0.19.1
