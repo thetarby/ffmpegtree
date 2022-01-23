@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// Chain is a singly linked chain of IFilterNodes which is written seperated by ',' in ffmpeg commands
+// Chain is a singly linked chain of IFilterNode's which is written seperated by ',' in ffmpeg commands
 type Chain []IFilterNode
 
 // ToString returns string representation of the chain of filters seperated by ','
@@ -41,9 +41,10 @@ type FFmpegExecutor struct {
 	q          []INode
 	maps       []IMap
 	outName    string
+	outOptions []string
 }
 
-func (e *FFmpegExecutor) ToFfmpeg(tree INode) string {
+func (e *FFmpegExecutor) ToFfmpeg(tree INode) FfmpegCommad {
 	// first preprocess tree
 	// insert select stream nodes where it is missing
 	e.insertSelectStream(tree)
@@ -63,22 +64,39 @@ func (e *FFmpegExecutor) ToFfmpeg(tree INode) string {
 	r := e.toFfmpeg()
 
 	// generate input options which are in the form of "-i ***.mp4"
-	inputs := ""
+	inputs := make([]string, 0, len(e.inputs))
 	for _, input := range e.inputs {
-		inputs += input.ToString() + " "
+		inputs = append(inputs, input.ToString()...)
 	}
 
 	// generate map options which are in the form of "-map '0:0'" or "-map '[var_1:0]'"
-	maps := ""
+	maps := make([]string, 0, len(e.maps))
 	for _, iMap := range e.maps {
-		maps += fmt.Sprintf(" %v", iMap.ToString())
+		maps = append(maps, iMap.ToString()...)
 	}
 
 	// put it all together
-	return inputs + " -filter_complex '" + r + "'" + maps + fmt.Sprintf(" %v", e.outName)
+	res := make([]string, 0)
+	res = append(res, inputs...)
+	res = append(res, "-filter_complex", r)
+	res = append(res, maps...)
+	res = append(res, e.outOptions...)
+	res = append(res, e.outName)
+	return res
 }
 
 func (e *FFmpegExecutor) toFfmpeg() string {
+	// NOTE: we are traversing tree in bfs manner and as lons as each node only has 1 dependents, it normally guarentees that a filter or a stream variable 
+	// shows up before all of its dependents in the output, avoiding 'forward declarations, which ffmpeg script does not support'.
+	// It is not guaranteed for split nodes because they could have more than one dependents. A split node may have a child node 
+	// which still has a dependent unprocessed node. To guarantee that the node which is splitted comes before all of its 
+	// dependents, we need to process its split node after all of its dependents are queued. 
+	
+	// nodeEncounters is a mapping from nodes to their fan out number(dependent count). Each time a node is popped 
+	// up from queue, its corresponding mapping is decreased by one and when it hits 0, it means the last dependent
+	// is processed hence we can proceed to process the current node and add it to output
+	nodeEncounters := make(map[string]int)
+	
 	for len(e.q) > 0 {
 		tree := e.q[0]
 		e.q = e.q[1:]
@@ -88,38 +106,46 @@ func (e *FFmpegExecutor) toFfmpeg() string {
 
 		switch tree.(type) {
 		case IFilterNode:
+			if _, ok := nodeEncounters[tree.GetID()]; !ok{
+				nodeEncounters[tree.GetID()] = len(e.dependents.Get(tree))
+			}
+			
+			if nodeEncounters[tree.GetID()] = nodeEncounters[tree.GetID()] - 1; nodeEncounters[tree.GetID()] > 0{
+				// if not 0 delay processing of the node since it migth still have unprocessed dependents
+				continue
+			}
+
 			e.visited[tree.GetID()] = true
 
 			// every IFilterNode can be treated as a chain of IFilterNode's even if it consists of only one node
 			c, newTree := e.toChain(tree)
 			tree = newTree
 
-			if len(tree.GetInputs()) > 0 { // TODO: unnecessary if
-				f := ""
-				for _, node := range tree.GetInputs() {
-					parentFilterNode, ok := node.(IFilterNode)
-					if !ok {
-						ssn := node.(ISelectStreamNode) // TODO: check if it is input node
-						f += ssn.GetStream()            // TODO: should be able to select any stream from input
-						continue
-					}
-					f += fmt.Sprintf("[%v]", parentFilterNode.GetOutStreamName())
+			f := ""
+			for _, node := range tree.GetInputs() {
+				parentFilterNode, ok := node.(IFilterNode)
+				if !ok {
+					ssn := node.(ISelectStreamNode)
+					f += ssn.GetStream()
+					continue
 				}
-
-				f += c.ToString(len(e.dependents.Get(c[0])) > 0 || e.isMapped(c[0]))
-				e.acc = append([]string{f}, e.acc...)
+				f += fmt.Sprintf("[%v]", parentFilterNode.GetOutStreamName())
 			}
+
+			f += c.ToString(len(e.dependents.Get(c[0])) > 0 || e.isMapped(c[0]))
+			e.acc = append([]string{f}, e.acc...)
+			
 		case IInputNode:
 			e.visited[tree.GetID()] = true
 		}
 
 		e.q = append(e.q, tree.GetInputs()...)
 	}
-
+	
 	return strings.Join(e.acc, ";")
 }
 
-// toChain creates a chain by adding given node then, starts to follow every node's inputs and adds it to chain
+// toChain creates a chain of IFilterNode's by adding given node then, starts to follow every node's inputs and adds it to chain
 // if the node has only one child and one dependency
 func (e *FFmpegExecutor) toChain(tree INode) (c Chain, ret INode) {
 	stack := make(Chain, 0)
@@ -144,7 +170,7 @@ func (e *FFmpegExecutor) toChain(tree INode) (c Chain, ret INode) {
 func (e *FFmpegExecutor) insertSelectStream(t INode) {
 	d := GetDependents(t)
 	for _, s := range d.Keys() {
-		nodes, _ := d.GetAndCheck(s)
+		nodes := d.Get(s)
 		in, ok := s.(IInputNode)
 		if !ok {
 			continue
@@ -173,7 +199,7 @@ func (e *FFmpegExecutor) insertSelectStream(t INode) {
 func (e *FFmpegExecutor) insertSplit(t INode) {
 	d := GetDependents(t)
 	for _, s := range d.Keys() {
-		nodes, _ := d.GetAndCheck(s)
+		nodes := d.Get(s)
 		_, ok := s.(IInputNode)
 		if len(nodes) > 1 && !ok {
 			split := NewSplitNode(s, len(nodes))
@@ -224,7 +250,7 @@ func (e *FFmpegExecutor) isMapped(n INode) bool {
 	return false
 }
 
-func NewFfmpegExecutor(maps []IMap, outName string) *FFmpegExecutor {
+func NewFfmpegExecutor(maps []IMap, outName string, outOptions []string) *FFmpegExecutor {
 	return &FFmpegExecutor{
 		acc:        nil,
 		inputs:     nil,
@@ -233,5 +259,18 @@ func NewFfmpegExecutor(maps []IMap, outName string) *FFmpegExecutor {
 		q:          nil,
 		maps:       maps,
 		outName:    outName,
+		outOptions: outOptions,
 	}
+}
+
+type FfmpegCommad []string
+
+func (cmd *FfmpegCommad) FilterComplex() string{
+	for i, arg := range *cmd{
+		if strings.Contains(arg, "filter_complex"){
+			return []string(*cmd)[i+1]
+		}
+	}
+
+	return ""
 }

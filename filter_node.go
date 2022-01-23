@@ -60,18 +60,35 @@ func NewScaleFilterNode(input INode, w, h int, setsar bool) *ScaleFilterNode {
 }
 
 /* Overlay Filter */
-
-type OverlayFilterNode struct {
+type OverlayIntoMiddleFilterNode struct {
 	BaseFilterNode
 }
 
-func (n *OverlayFilterNode) FilterString() string {
+func (n *OverlayIntoMiddleFilterNode) FilterString() string {
 	return "overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2"
 }
 
-func NewOverlayFilterNode(input1, input2 INode) *OverlayFilterNode {
+func NewOverlayIntoMiddleFilterNode(input1, input2 INode) *OverlayIntoMiddleFilterNode {
+	return &OverlayIntoMiddleFilterNode{
+		BaseFilterNode: *NewBaseFilterNode([]INode{input1, input2}, randStr()),
+	}
+}
+
+
+type OverlayFilterNode struct {
+	BaseFilterNode
+	x, y string
+}
+
+func (n *OverlayFilterNode) FilterString() string {
+	return fmt.Sprintf("overlay=%v:%v", n.x, n.y)
+}
+
+func NewOverlayFilterNode(input1, input2 INode, x, y string) *OverlayFilterNode {
 	return &OverlayFilterNode{
 		BaseFilterNode: *NewBaseFilterNode([]INode{input1, input2}, randStr()),
+		x:              x,
+		y:              y,
 	}
 }
 
@@ -167,5 +184,21 @@ func NewCurvesFilter(input INode, preset string) *CurvesFilter {
 	return &CurvesFilter{
 		BaseFilterNode: *NewBaseFilterNode([]INode{input}, randStr()),
 		preset:         preset,
+	}
+}
+
+type RotateFilter struct {
+	BaseFilterNode
+	rotateExpr string
+}
+
+func (f *RotateFilter) FilterString() string {
+	return fmt.Sprintf("rotate=%v", f.rotateExpr)
+}
+
+func NewRotateFilter(input INode, rotateExpr string) *RotateFilter {
+	return &RotateFilter{
+		BaseFilterNode: *NewBaseFilterNode([]INode{input}, randStr()),
+		rotateExpr:         rotateExpr,
 	}
 }

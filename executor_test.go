@@ -31,17 +31,17 @@ func TestSplitNode(t *testing.T) {
 	s1 := NewScaleFilterNode(i1, 100, 100, true)
 	s2 := NewScaleFilterNode(i1, 101, 101, true)
 
-	ov1 := NewOverlayFilterNode(s1, s2)
+	ov1 := NewOverlayIntoMiddleFilterNode(s1, s2)
 
 	s3 := NewScaleFilterNode(ov1, 102, 102, true)
 	s4 := NewScaleFilterNode(ov1, 103, 103, true)
 
-	ov2 := NewOverlayFilterNode(s3, s4)
+	ov2 := NewOverlayIntoMiddleFilterNode(s3, s4)
 
-	str := Select(ov2, "out.mp4")
-	reg := regexp.MustCompile(`-i input_1.mp4\s*-filter_complex '(?P<s1>\[.*])split(?P<s2>\[.*])(?P<s3>\[.*]);(?P<s3_2>\[.*])scale=101:101,setsar=1:1(?P<s4>\[.*]);(?P<s2_2>\[.*])scale=100:100,setsar=1:1(?P<s5>\[.*]);(?P<s5_2>\[.*])(?P<s4_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2,split(?P<s6>\[.*])(?P<s7>\[.*]);(?P<s7_2>\[.*])scale=103:103,setsar=1:1(?P<s8>\[.*]);(?P<s6_2>\[.*])scale=102:102,setsar=1:1(?P<s9>\[.*]);(?P<s9_2>\[.*])(?P<s8_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2' out\.mp4`)
-	require.Regexp(t, reg, str)
-	params := getParams(reg, str)
+	str := Select(ov2, "out.mp4", nil)
+	reg := regexp.MustCompile(`(?P<s1>\[.*])split(?P<s2>\[.*])(?P<s3>\[.*]);(?P<s3_2>\[.*])scale=101:101,setsar=1:1(?P<s4>\[.*]);(?P<s2_2>\[.*])scale=100:100,setsar=1:1(?P<s5>\[.*]);(?P<s5_2>\[.*])(?P<s4_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2,split(?P<s6>\[.*])(?P<s7>\[.*]);(?P<s7_2>\[.*])scale=103:103,setsar=1:1(?P<s8>\[.*]);(?P<s6_2>\[.*])scale=102:102,setsar=1:1(?P<s9>\[.*]);(?P<s9_2>\[.*])(?P<s8_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2`)
+	require.Regexp(t, reg, str.FilterComplex())
+	params := getParams(reg, str.FilterComplex())
 	require.Equal(t, params["s2"], params["s2_2"])
 	require.Equal(t, params["s3"], params["s3_2"])
 	require.Equal(t, params["s4"], params["s4_2"])
@@ -58,15 +58,15 @@ func TestMoreThanOneInput(t *testing.T) {
 	bg := NewScaleFilterNode(NewBoxBlurFilter(i1, "min(w\\,h)/5", "min(cw\\,ch)/5", 1), 200, 200, true)
 	fg := NewChromaFilterNode(NewScaleFilterNode(i2, 100, 100, true), "#00ff00", 0.5)
 
-	ov1 := NewOverlayFilterNode(bg, fg)
+	ov1 := NewOverlayIntoMiddleFilterNode(bg, fg)
 
-	str := Select(ov1, "out.mp4")
-	reg := regexp.MustCompile(`-i .*\.mp4 -i .*\.mp4\s*-filter_complex\s*'(?P<s1>\[.*])scale=100:100,setsar=1:1,colorkey=#00ff00:0\.5(?P<s2>\[.*]);(?P<s3>\[.*])boxblur=luma_radius=min\(w\\,h\)/5:chroma_radius=min\(cw\\,ch\)/5:luma_power=1,scale=200:200,setsar=1:1(?P<s4>\[.*]);(?P<s4_2>\[.*])(?P<s2_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2' out\.mp4`)
+	str := Select(ov1, "out.mp4", nil)
+	reg := regexp.MustCompile(`(?P<s1>\[.*])scale=100:100,setsar=1:1,colorkey=#00ff00:0\.5(?P<s2>\[.*]);(?P<s3>\[.*])boxblur=luma_radius=min\(w\\,h\)/5:chroma_radius=min\(cw\\,ch\)/5:luma_power=1,scale=200:200,setsar=1:1(?P<s4>\[.*]);(?P<s4_2>\[.*])(?P<s2_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2`)
 	require.Regexp(t, reg, str)
-	params := getParams(reg, str)
+
+	params := getParams(reg, str.FilterComplex())
 	require.Equal(t, params["s2"], params["s2_2"])
 	require.Equal(t, params["s4"], params["s4_2"])
-	//require.Equal(t, `-i input_1.mp4 -i input_2.mp4  -filter_complex '[1:0]scale=100:100,setsar=1:1,colorkey=#00ff00:0.5[var_4];[0:0]boxblur=luma_radius=min(w\,h)/5:chroma_radius=min(cw\,ch)/5:luma_power=1,scale=200:200,setsar=1:1[var_2];[var_2][var_4]overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2' out.mp4`, str)
 }
 
 func TestSelectStream_1(t *testing.T) {
@@ -75,18 +75,18 @@ func TestSelectStream_1(t *testing.T) {
 	s1 := NewScaleFilterNode(i1, 100, 100, true)
 	s2 := NewScaleFilterNode(i1, 101, 101, true)
 
-	ov1 := NewOverlayFilterNode(s1, s2)
+	ov1 := NewOverlayIntoMiddleFilterNode(s1, s2)
 
 	s3 := NewScaleFilterNode(ov1, 102, 102, true)
 	s4 := NewScaleFilterNode(ov1, 103, 103, true)
 
-	ov2 := NewOverlayFilterNode(s3, s4)
+	ov2 := NewOverlayIntoMiddleFilterNode(s3, s4)
 
-	str := Select(ov2, "out.mp4", NewMap(ov2))
-	println(str)
-	reg := regexp.MustCompile(`-i input_1\.mp4\s*-filter_complex\s*'(?P<s1>\[.*])split(?P<s2>\[.*])(?P<s3>\[.*]);(?P<s3_2>\[.*])scale=101:101,setsar=1:1(?P<s4>\[.*]);(?P<s2_2>\[.*])scale=100:100,setsar=1:1(?P<s5>\[.*]);(?P<s5_2>\[.*])(?P<s4_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2,split(?P<s6>\[.*])(?P<s7>\[.*]);(?P<s7_2>\[.*])scale=103:103,setsar=1:1(?P<s8>\[.*]);(?P<s6_2>\[.*])scale=102:102,setsar=1:1(?P<s9>\[.*]);(?P<s9_2>\[.*])(?P<s8_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2(?P<s10>\[.*])' -map '(?P<s10_2>\[.*])' out\.mp4`)
+	str := Select(ov2, "out.mp4", nil, NewMap(ov2))
+	
+	reg := regexp.MustCompile(`(?P<s1>\[.*])split(?P<s2>\[.*])(?P<s3>\[.*]);(?P<s3_2>\[.*])scale=101:101,setsar=1:1(?P<s4>\[.*]);(?P<s2_2>\[.*])scale=100:100,setsar=1:1(?P<s5>\[.*]);(?P<s5_2>\[.*])(?P<s4_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2,split(?P<s6>\[.*])(?P<s7>\[.*]);(?P<s7_2>\[.*])scale=103:103,setsar=1:1(?P<s8>\[.*]);(?P<s6_2>\[.*])scale=102:102,setsar=1:1(?P<s9>\[.*]);(?P<s9_2>\[.*])(?P<s8_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2(?P<s10>\[.*])`)
 	require.Regexp(t, reg, str)
-	params := getParams(reg, str)
+	params := getParams(reg, str.FilterComplex())
 	require.Equal(t, params["s2"], params["s2_2"])
 	require.Equal(t, params["s3"], params["s3_2"])
 	require.Equal(t, params["s4"], params["s4_2"])
@@ -95,7 +95,6 @@ func TestSelectStream_1(t *testing.T) {
 	require.Equal(t, params["s7"], params["s7_2"])
 	require.Equal(t, params["s8"], params["s8_2"])
 	require.Equal(t, params["s9"], params["s9_2"])
-	require.Equal(t, params["s10"], params["s10_2"])
 	//require.Equal(t, `-i input_1.mp4 -filter_complex '[0:1]split[var_8_0][var_8_1];[var_8_1]scale=101:101,setsar=1:1[var_2];[var_8_0]scale=100:100,setsar=1:1[var_1];[var_1][var_2]overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2,split[var_7_0][var_7_1];[var_7_1]scale=103:103,setsar=1:1[var_5];[var_7_0]scale=102:102,setsar=1:1[var_4];[var_4][var_5]overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2[var_6]' -map '[var_6]' out.mp4`, str)
 }
 
@@ -105,18 +104,18 @@ func TestSelectStream_2(t *testing.T) {
 	s1 := NewScaleFilterNode(i1Stream1, 100, 100, true)
 	s2 := NewScaleFilterNode(i1, 101, 101, true)
 
-	ov1 := NewOverlayFilterNode(s1, s2)
+	ov1 := NewOverlayIntoMiddleFilterNode(s1, s2)
 
 	s3 := NewScaleFilterNode(ov1, 102, 102, true)
 	s4 := NewScaleFilterNode(ov1, 103, 103, true)
 
-	ov2 := NewOverlayFilterNode(s3, s4)
+	ov2 := NewOverlayIntoMiddleFilterNode(s3, s4)
 
-	str := Select(ov2, "out.mp4")
-	println(str)
-	reg := regexp.MustCompile(`-i input_1.mp4  -filter_complex '(?P<s1>\[.*])scale=101:101,setsar=1:1(?P<s2>\[.*]);(?P<s3>\[.*])scale=100:100,setsar=1:1(?P<s4>\[.*]);(?P<s4_2>\[.*])(?P<s2_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2,split(?P<s5>\[.*])(?P<s6>\[.*]);(?P<s6_2>\[.*])scale=103:103,setsar=1:1(?P<s7>\[.*]);(?P<s5_2>\[.*])scale=102:102,setsar=1:1(?P<s8>\[.*]);(?P<s8_2>\[.*])(?P<s7_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2' out.mp4`)
+	str := Select(ov2, "out.mp4", nil)
+	
+	reg := regexp.MustCompile(`(?P<s1>\[.*])scale=101:101,setsar=1:1(?P<s2>\[.*]);(?P<s3>\[.*])scale=100:100,setsar=1:1(?P<s4>\[.*]);(?P<s4_2>\[.*])(?P<s2_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2,split(?P<s5>\[.*])(?P<s6>\[.*]);(?P<s6_2>\[.*])scale=103:103,setsar=1:1(?P<s7>\[.*]);(?P<s5_2>\[.*])scale=102:102,setsar=1:1(?P<s8>\[.*]);(?P<s8_2>\[.*])(?P<s7_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2`)
 	require.Regexp(t, reg, str)
-	params := getParams(reg, str)
+	params := getParams(reg, str.FilterComplex())
 	require.Equal(t, params["s2"], params["s2_2"])
 	require.Equal(t, params["s4"], params["s4_2"])
 	require.Equal(t, params["s5"], params["s5_2"])
@@ -133,8 +132,20 @@ func TestMap(t *testing.T) {
 	s1 := NewScaleFilterNode(i1, 400, 400, true)
 	s2 := NewDrawBoxFilter(s1, 0, 0, 400, 70, "#00ff00", "fill")
 
-	str := Select(s2, "out.mp4", NewMap(i2, "a"))
-	require.Equal(t, `-t 00:00:05 -i vid.mp4 -t 00:00:05 -i vid3.mp4  -filter_complex '[0:0]scale=400:400,setsar=1:1,drawbox=x=0:y=0:w=400:h=70:color=#00ff00:t=fill' -map '1:a' out.mp4`, str)
+	str := Select(s2, "out.mp4", nil, NewMap(i2, "a"))
+	require.Equal(t, "-t", str[0])
+	require.Equal(t, "00:00:05", str[1])
+	require.Equal(t, "-i", str[2])
+	require.Equal(t, "vid.mp4", str[3])
+	require.Equal(t, "-t", str[4])
+	require.Equal(t, "00:00:05", str[5])
+	require.Equal(t, "-i", str[6])
+	require.Equal(t, "vid3.mp4", str[7])
+	require.Equal(t, "-filter_complex", str[8])
+	require.Equal(t, `[0:0]scale=400:400,setsar=1:1,drawbox=x=0:y=0:w=400:h=70:color=#00ff00:t=fill`, str.FilterComplex())
+	require.Equal(t, `-map`, str[10])
+	require.Equal(t, `1:a`, str[11])
+	require.Equal(t, `out.mp4`, str[12])
 	// -t 00:00:05 -i vid.mp4 -t 00:00:05 -i vid3.mp4  -filter_complex '[0:0]scale=400:400,setsar=1:1,drawbox=x=0:y=0:w=400:h=70:color=#00ff00:t=fill' -map '1:a' out.mp4
 }
 
@@ -148,12 +159,20 @@ func TestCurves(t *testing.T) {
 	blurred := NewBoxBlurFilter(scaled, "min(w\\,h)/5", "min(cw\\,ch)/5", 1)
 	scaledBlurred := NewScaleFilterNode(blurred, 1200, 1600, true)
 
-	o := NewCurvesFilter(NewOverlayFilterNode(scaledBlurred, scaled), "vintage")
-	str := Select(o, "out.mp4")
-	println(str)
-	reg := regexp.MustCompile(`-t 00:00:10 -i vid.mp4\s*-filter_complex '(?P<s1>\[.*])setpts=0.90909094\*PTS,scale=1200:-2,setsar=1:1,split(?P<s2>\[.*])(?P<s3>\[.*]);(?P<s3_2>\[.*])boxblur=luma_radius=min\(w\\,h\)/5:chroma_radius=min\(cw\\,ch\)/5:luma_power=1,scale=1200:1600,setsar=1:1(?P<s4>\[.*]);(?P<s4_2>\[.*])(?P<s2_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2,curves=preset=vintage' out.mp4`)
+	o := NewCurvesFilter(NewOverlayIntoMiddleFilterNode(scaledBlurred, scaled), "vintage")
+	str := Select(o, "out.mp4", nil)
+
+	//-t 00:00:10 -i vid.mp4\s*-filter_complex '
+
+	reg := regexp.MustCompile(`(?P<s1>\[.*])setpts=0.90909094\*PTS,scale=1200:-2,setsar=1:1,split(?P<s2>\[.*])(?P<s3>\[.*]);(?P<s3_2>\[.*])boxblur=luma_radius=min\(w\\,h\)/5:chroma_radius=min\(cw\\,ch\)/5:luma_power=1,scale=1200:1600,setsar=1:1(?P<s4>\[.*]);(?P<s4_2>\[.*])(?P<s2_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2,curves=preset=vintage`)
+	
+	require.Equal(t, "-t", str[0])
+	require.Equal(t, "00:00:10", str[1])
+	require.Equal(t, "-i", str[2])
+	require.Equal(t, "vid.mp4", str[3])
+
 	require.Regexp(t, reg, str)
-	params := getParams(reg, str)
+	params := getParams(reg, str.FilterComplex())
 	require.Equal(t, params["s2"], params["s2_2"])
 	require.Equal(t, params["s3"], params["s3_2"])
 	require.Equal(t, params["s4"], params["s4_2"])

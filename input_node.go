@@ -7,7 +7,7 @@ import (
 
 type IInputNode interface {
 	INode
-	ToString() string
+	ToString() []string
 	GetInputIdx() int
 	SetInputIdx(int)
 }
@@ -19,16 +19,17 @@ type InputNode struct {
 	inputIdx    int
 }
 
-func (i *InputNode) ToString() string {
-	str := fmt.Sprintf("-i %v", i.InputName)
+func (i *InputNode) ToString() []string {
+	res := make([]string, 0)
+	res = append(res, "-i", i.InputName)
 	if i.Offset != nil {
-		str = fmt.Sprintf("-ss %v %v", fmtDuration(*i.Offset), str)
+		res = append([]string{"-ss", fmtDuration(*i.Offset)}, res...)
 	}
 	if i.Len != nil {
-		str = fmt.Sprintf("-t %v %v", fmtDuration(*i.Len), str)
+		res = append([]string{"-t", fmtDuration(*i.Len)}, res...)
 	}
 
-	return str
+	return res
 }
 
 func (i *InputNode) GetInputIdx() int {

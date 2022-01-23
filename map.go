@@ -1,9 +1,11 @@
 package ffmpegtree
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type IMap interface {
-	ToString() string
+	ToString() []string
 
 	// GetStreamNode returns the node from which stream is mapped
 	GetStreamNode() INode
@@ -19,8 +21,8 @@ func (m *MapFromFilterNode) GetStreamNode() INode {
 	return m.filterNode
 }
 
-func (m *MapFromFilterNode) ToString() string {
-	return fmt.Sprintf("-map '[%v]'", m.filterNode.GetOutStreamName())
+func (m *MapFromFilterNode) ToString() []string {
+	return []string{"-map", fmt.Sprintf("[%v]", m.filterNode.GetOutStreamName())}
 }
 
 var _ IMap = &MapFromInputNode{}
@@ -34,8 +36,8 @@ func (m *MapFromInputNode) GetStreamNode() INode {
 	return m.input
 }
 
-func (m *MapFromInputNode) ToString() string {
-	return fmt.Sprintf("-map '%v:%v'", m.input.GetInputIdx(), m.stream)
+func (m *MapFromInputNode) ToString() []string {
+	return []string{"-map", fmt.Sprintf("%v:%v", m.input.GetInputIdx(), m.stream)}
 }
 
 func NewMap(fromNode INode, opts ...string) IMap {
@@ -57,8 +59,8 @@ func NewMap(fromNode INode, opts ...string) IMap {
 	return nil
 }
 
-func Select(tree INode, outName string, maps ...IMap) string {
-	exec := NewFfmpegExecutor(maps, outName)
-	str := exec.ToFfmpeg(tree)
-	return str
+func Select(tree INode, outName string, outputOptions []string, maps ...IMap) FfmpegCommad {
+	exec := NewFfmpegExecutor(maps, outName, outputOptions)
+	res := exec.ToFfmpeg(tree)
+	return res
 }
