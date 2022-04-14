@@ -44,23 +44,25 @@ type FFmpegExecutor struct {
 	outOptions []string
 }
 
-func (e *FFmpegExecutor) ToFfmpeg(tree INode) FfmpegCommad {
-	// first preprocess tree
-	// insert select stream nodes where it is missing
-	e.insertSelectStream(tree)
+func (e *FFmpegExecutor) ToFfmpeg(nodes... INode) FfmpegCommad {
+	for _, node := range nodes{
+		// find all IInputNode and assign their indexes. it will affect the order they show up in the output
+		e.setInputIdx(node)
 
-	// insert split nodes if a stream is input to more than one node
-	e.insertSplit(tree)
+		// first preprocess tree
+		// insert select stream nodes where it is missing
+		e.insertSelectStream(node)
 
-	// find all IInputNode and assign their indexes. it will affect the order they show up in the output
-	e.setInputIdx(tree)
-
+		// insert split nodes if a stream is input to more than one node
+		e.insertSplit(node)
+	}
+	
 	// each node can access its inputs but cannot access to nodes which depends on itself. traverse tree
 	// and save dependencies in a hashmap structure. it will be useful while executing tree.
-	e.dependents = GetDependents(tree)
+	e.dependents = GetDependents(nodes...)
 
 	// start traversal from root node
-	e.q = []INode{tree}
+	e.q = nodes
 	r := e.toFfmpeg()
 
 	// generate input options which are in the form of "-i ***.mp4"
@@ -114,11 +116,10 @@ func (e *FFmpegExecutor) toFfmpeg() string {
 				// if not 0 delay processing of the node since it migth still have unprocessed dependents
 				continue
 			}
-
-			e.visited[tree.GetID()] = true
-
+			
 			// every IFilterNode can be treated as a chain of IFilterNode's even if it consists of only one node
 			c, newTree := e.toChain(tree)
+			e.visited[tree.GetID()] = true
 			tree = newTree
 
 			f := ""
@@ -198,16 +199,20 @@ func (e *FFmpegExecutor) insertSelectStream(t INode) {
 // This is required by ffmpeg syntax.
 func (e *FFmpegExecutor) insertSplit(t INode) {
 	d := GetDependents(t)
-	for _, s := range d.Keys() {
-		nodes := d.Get(s)
-		_, ok := s.(IInputNode)
-		if len(nodes) > 1 && !ok {
-			split := NewSplitNode(s, len(nodes))
-			for _, node := range nodes {
+	for _, currNode := range d.Keys() {
+		if _, ok := currNode.(ISplitNode); ok{
+			continue
+		}
+
+		dependents := d.Get(currNode)
+		_, ok := currNode.(IInputNode) // input node can be input to more than once without splitting
+		if len(dependents) > 1 && !ok {
+			split := NewSplitNode(currNode, len(dependents))
+			for _, node := range dependents {
 				inps := node.GetInputs()
 				i := 0
 				for ; i < len(inps); i++ {
-					if inps[i].GetID() == s.GetID() {
+					if inps[i].GetID() == currNode.GetID() {
 						break
 					}
 				}
@@ -223,7 +228,7 @@ func (e *FFmpegExecutor) setInputIdx(t INode) {
 	d := GetDependents(t)
 	for _, s := range d.Keys() {
 		in, ok := s.(IInputNode)
-		if ok {
+		if ok && !e.isInInputs(in){
 			in.SetInputIdx(len(e.inputs))
 			e.inputs = append(e.inputs, in)
 		}
@@ -233,7 +238,7 @@ func (e *FFmpegExecutor) setInputIdx(t INode) {
 	for _, iMap := range e.maps {
 		n := iMap.GetStreamNode()
 		in, ok := n.(IInputNode)
-		if ok && d.Get(in) == nil {
+		if ok && d.Get(in) == nil && !e.isInInputs(in) {
 			in.SetInputIdx(len(e.inputs))
 			e.inputs = append(e.inputs, in)
 		}
@@ -243,6 +248,16 @@ func (e *FFmpegExecutor) setInputIdx(t INode) {
 func (e *FFmpegExecutor) isMapped(n INode) bool {
 	for _, m := range e.maps {
 		if m.GetStreamNode().GetID() == n.GetID() {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (e *FFmpegExecutor) isInInputs(n IInputNode) bool {
+	for _, inp := range e.inputs {
+		if inp.GetID() == n.GetID() {
 			return true
 		}
 	}

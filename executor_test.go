@@ -1,20 +1,22 @@
 package ffmpegtree
 
 import (
-	"github.com/stretchr/testify/require"
+	"fmt"
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 // TODO: variable names still seem to be random so tests fails time to time
 
 /**
- * Parses url with the given regular expression and returns the 
+ * Parses url with the given regular expression and returns the
  * group values defined in the expression.
  *
  */
- func getParams(regEx *regexp.Regexp, str string) (paramsMap map[string]string) {
+func getParams(regEx *regexp.Regexp, str string) (paramsMap map[string]string) {
     match := regEx.FindStringSubmatch(str)
 
     paramsMap = make(map[string]string)
@@ -176,4 +178,28 @@ func TestCurves(t *testing.T) {
 	require.Equal(t, params["s2"], params["s2_2"])
 	require.Equal(t, params["s3"], params["s3_2"])
 	require.Equal(t, params["s4"], params["s4_2"])
+}
+
+func TestSelectMoreThanOneStream(t *testing.T) {
+	x := time.Second * 10
+	var in IInputNode = NewInputNode("vid.mp4", &x, nil)
+	vs := 2.0
+	var inVStream INode = NewVideoSpeedFilter(in, float32(1.0/vs))
+	var scaledInVStream INode = NewScaleFilterNode(inVStream, 100, 100, false)
+	inVStreamFinal := NewScaleFilterNode(scaledInVStream, 10, 10, false)
+	
+	var differVStream INode = NewScaleFilterNode(scaledInVStream, 200, 200, false)
+	differVStream = NewScaleFilterNode(differVStream, 300, 300, false)
+
+
+	exec := NewFfmpegExecutor(nil, "out.mp4", nil)
+	res := exec.ToFfmpeg(differVStream, inVStreamFinal)
+
+	reg := regexp.MustCompile(`(?P<s1>\[.*])setpts=0.5\*PTS,scale=100:100(?P<s2>\[.*]);(?P<s3>\[.*])scale=10:10;(?P<s4>\[.*])scale=200:200,scale=300:300`)
+	// [0:0]setpts=0.5*PTS,scale=100:100[var_2];[var_2]scale=10:10;[var_2]scale=200:200,scale=300:300
+	require.Regexp(t, reg, res.FilterComplex())
+	params := getParams(reg, res.FilterComplex())
+	require.Equal(t, params["s2"], params["s3"])
+	require.Equal(t, params["s3"], params["s4"])
+	fmt.Println(res)
 }

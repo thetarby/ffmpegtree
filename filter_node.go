@@ -74,7 +74,6 @@ func NewOverlayIntoMiddleFilterNode(input1, input2 INode) *OverlayIntoMiddleFilt
 	}
 }
 
-
 type OverlayFilterNode struct {
 	BaseFilterNode
 	x, y string
@@ -199,6 +198,22 @@ func (f *RotateFilter) FilterString() string {
 func NewRotateFilter(input INode, rotateExpr string) *RotateFilter {
 	return &RotateFilter{
 		BaseFilterNode: *NewBaseFilterNode([]INode{input}, randStr()),
-		rotateExpr:         rotateExpr,
+		rotateExpr:     rotateExpr,
+	}
+}
+
+type AtempoFilter struct {
+	BaseFilterNode
+	speed float32
+}
+
+func (f *AtempoFilter) FilterString() string {
+	return fmt.Sprintf("atempo=%.2f", f.speed)
+}
+
+func NewAtempoFilter(input INode, speed float32) *AtempoFilter {
+	return &AtempoFilter{
+		BaseFilterNode: *NewBaseFilterNode([]INode{input}, randStr()),
+		speed:          speed,
 	}
 }
