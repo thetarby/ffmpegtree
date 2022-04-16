@@ -2,24 +2,21 @@ package ffmpegtree
 
 import "fmt"
 
-type Stream interface {
-	GetName() string
+// Streamer nodes are nodes which outputs a stream such as filter nodes or 
+// select stream nodes (which streams from an input node at selected index)
+type Streamer interface{
+	GetOutStreamName() string
 }
 
 type IFilterNode interface {
 	INode
-	GetOutput() Stream
-	GetOutStreamName() string
+	Streamer
 	FilterString() string
 }
 
 type BaseFilterNode struct {
 	BaseNode
 	OutStreamName string
-}
-
-func (b *BaseFilterNode) GetOutput() Stream {
-	panic("implement me")
 }
 
 func (b *BaseFilterNode) GetOutStreamName() string {

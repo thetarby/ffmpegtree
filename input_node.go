@@ -57,7 +57,7 @@ const AudioStream = -2
 // from the input
 type ISelectStreamNode interface {
 	INode
-	GetStream() string
+	Streamer
 	GetInputNode() IInputNode
 }
 
@@ -74,7 +74,7 @@ func (s *SelectStreamNode) GetInputNode() IInputNode {
 	return s.input
 }
 
-func (s *SelectStreamNode) GetStream() string {
+func (s *SelectStreamNode) GetOutStreamName() string {
 	return fmt.Sprintf("[%v:%v]", s.input.GetInputIdx(), s.idx)
 }
 

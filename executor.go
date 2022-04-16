@@ -127,7 +127,7 @@ func (e *FFmpegExecutor) toFfmpeg() string {
 				parentFilterNode, ok := node.(IFilterNode)
 				if !ok {
 					ssn := node.(ISelectStreamNode)
-					f += ssn.GetStream()
+					f += ssn.GetOutStreamName()
 					continue
 				}
 				f += fmt.Sprintf("[%v]", parentFilterNode.GetOutStreamName())
