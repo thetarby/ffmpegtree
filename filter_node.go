@@ -2,24 +2,21 @@ package ffmpegtree
 
 import "fmt"
 
-type Stream interface {
-	GetName() string
+// Streamer nodes are nodes which outputs a stream such as filter nodes or 
+// select stream nodes (which streams from an input node at selected index)
+type Streamer interface{
+	GetOutStreamName() string
 }
 
 type IFilterNode interface {
 	INode
-	GetOutput() Stream
-	GetOutStreamName() string
+	Streamer
 	FilterString() string
 }
 
 type BaseFilterNode struct {
 	BaseNode
 	OutStreamName string
-}
-
-func (b *BaseFilterNode) GetOutput() Stream {
-	panic("implement me")
 }
 
 func (b *BaseFilterNode) GetOutStreamName() string {
@@ -73,7 +70,6 @@ func NewOverlayIntoMiddleFilterNode(input1, input2 INode) *OverlayIntoMiddleFilt
 		BaseFilterNode: *NewBaseFilterNode([]INode{input1, input2}, randStr()),
 	}
 }
-
 
 type OverlayFilterNode struct {
 	BaseFilterNode
@@ -199,6 +195,22 @@ func (f *RotateFilter) FilterString() string {
 func NewRotateFilter(input INode, rotateExpr string) *RotateFilter {
 	return &RotateFilter{
 		BaseFilterNode: *NewBaseFilterNode([]INode{input}, randStr()),
-		rotateExpr:         rotateExpr,
+		rotateExpr:     rotateExpr,
+	}
+}
+
+type AtempoFilter struct {
+	BaseFilterNode
+	speed float32
+}
+
+func (f *AtempoFilter) FilterString() string {
+	return fmt.Sprintf("atempo=%.2f", f.speed)
+}
+
+func NewAtempoFilter(input INode, speed float32) *AtempoFilter {
+	return &AtempoFilter{
+		BaseFilterNode: *NewBaseFilterNode([]INode{input}, randStr()),
+		speed:          speed,
 	}
 }
