@@ -2,9 +2,9 @@ package ffmpegtree
 
 import "fmt"
 
-// Streamer nodes are nodes which outputs a stream such as filter nodes or 
+// Streamer nodes are nodes which outputs a stream such as filter nodes or
 // select stream nodes (which streams from an input node at selected index)
-type Streamer interface{
+type Streamer interface {
 	GetOutStreamName() string
 }
 
@@ -12,11 +12,16 @@ type IFilterNode interface {
 	INode
 	Streamer
 	FilterString() string
+	EnableExpr() string
 }
 
 type BaseFilterNode struct {
 	BaseNode
 	OutStreamName string
+}
+
+func (b *BaseFilterNode) EnableExpr() string {
+	return ""
 }
 
 func (b *BaseFilterNode) GetOutStreamName() string {
@@ -32,6 +37,15 @@ func NewBaseFilterNode(children []INode, outStreamName string) *BaseFilterNode {
 		BaseNode:      NewBaseNode(children),
 		OutStreamName: outStreamName,
 	}
+}
+
+func FilterNodeToStr(node IFilterNode) string {
+	filterStr, enableExpr := node.FilterString(), node.EnableExpr()
+	if enableExpr == "" {
+		return filterStr
+	}
+
+	return fmt.Sprintf("%v:enable='%v'", filterStr, enableExpr)
 }
 
 type ScaleFilterNode struct {
@@ -123,7 +137,7 @@ func NewVideoSpeedFilter(input INode, presentationTimeStamps float32) *VideoSpee
 }
 
 type DrawBoxFilter struct {
-	BaseFilterNode
+	TimelineAcceptingFilterNode
 	X      int
 	Y      int
 	Width  int
@@ -138,13 +152,13 @@ func (f *DrawBoxFilter) FilterString() string {
 
 func NewDrawBoxFilter(input INode, x, y, w, h int, color, t string) *DrawBoxFilter {
 	return &DrawBoxFilter{
-		BaseFilterNode: *NewBaseFilterNode([]INode{input}, randStr()),
-		X:              x,
-		Y:              y,
-		Width:          w,
-		Height:         h,
-		Color:          color,
-		Type:           t,
+		TimelineAcceptingFilterNode: *NewTimelineAcceptingFilterNode([]INode{input}, randStr()),
+		X:                           x,
+		Y:                           y,
+		Width:                       w,
+		Height:                      h,
+		Color:                       color,
+		Type:                        t,
 	}
 }
 
@@ -168,7 +182,7 @@ func NewBoxBlurFilter(input INode, lumaRadius string, chromaRadius string, lumaP
 }
 
 type CurvesFilter struct {
-	BaseFilterNode
+	TimelineAcceptingFilterNode
 	preset string
 }
 
@@ -178,8 +192,8 @@ func (f *CurvesFilter) FilterString() string {
 
 func NewCurvesFilter(input INode, preset string) *CurvesFilter {
 	return &CurvesFilter{
-		BaseFilterNode: *NewBaseFilterNode([]INode{input}, randStr()),
-		preset:         preset,
+		TimelineAcceptingFilterNode: *NewTimelineAcceptingFilterNode([]INode{input}, randStr()),
+		preset:                      preset,
 	}
 }
 
@@ -212,5 +226,26 @@ func NewAtempoFilter(input INode, speed float32) *AtempoFilter {
 	return &AtempoFilter{
 		BaseFilterNode: *NewBaseFilterNode([]INode{input}, randStr()),
 		speed:          speed,
+	}
+}
+
+type DrawTextFilter struct {
+	BaseFilterNode
+	x, y, text, fontColor string
+	fontSize              int
+}
+
+func (f *DrawTextFilter) FilterString() string {
+	return `drawtext=text='Test Text':fontsize=h/30:x=(w-text_w)/2:y=(h-text_h*2)`
+}
+
+func NewDrawTextFilter(input INode, x, y, text, fontColor string, fontSize int) *DrawTextFilter {
+	return &DrawTextFilter{
+		BaseFilterNode: *NewBaseFilterNode([]INode{input}, randStr()),
+		x:              x,
+		y:              y,
+		text:           text,
+		fontColor:      fontColor,
+		fontSize:       fontSize,
 	}
 }

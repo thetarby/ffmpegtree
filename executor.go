@@ -12,7 +12,7 @@ type Chain []IFilterNode
 func (c Chain) ToString(includeOutStream bool) string {
 	filterStrings := make([]string, 0)
 	for i := len(c) - 1; i >= 0; i-- {
-		filterStrings = append(filterStrings, c[i].FilterString())
+		filterStrings = append(filterStrings, FilterNodeToStr(c[i]))
 	}
 
 	// if ends with split

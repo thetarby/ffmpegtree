@@ -203,3 +203,16 @@ func TestSelectMoreThanOneStream(t *testing.T) {
 	require.Equal(t, params["s3"], params["s4"])
 	fmt.Println(res)
 }
+
+func TestCurvesWithTimeline(t *testing.T) {
+	i := NewInputNode("./test_assets/test-vid.mp4", nil, nil)
+	c := NewCurvesFilter(i, "vintage")
+	c.Since(3)
+	res := NewScaleFilterNode(c, 100, 100, true)
+	
+	exec := NewFfmpegExecutor(nil, "out.mp4", nil)
+	args := exec.ToFfmpeg(res)
+	
+	// [0:0]curves=preset=vintage:enable='between(t, 1,5)',scale=100:100,setsar=1:1
+	require.Equal(t, `[0:0]curves=preset=vintage:enable='gte(t, 3.00)',scale=100:100,setsar=1:1`, args.FilterComplex())
+}
