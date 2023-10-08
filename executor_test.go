@@ -40,7 +40,7 @@ func TestSplitNode(t *testing.T) {
 
 	ov2 := NewOverlayIntoMiddleFilterNode(s3, s4)
 
-	str := Select(ov2, "out.mp4", nil)
+	str := Select([]INode{ov2}, "out.mp4", nil)
 	reg := regexp.MustCompile(`(?P<s1>\[.*])split(?P<s2>\[.*])(?P<s3>\[.*]);(?P<s3_2>\[.*])scale=101:101,setsar=1:1(?P<s4>\[.*]);(?P<s2_2>\[.*])scale=100:100,setsar=1:1(?P<s5>\[.*]);(?P<s5_2>\[.*])(?P<s4_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2,split(?P<s6>\[.*])(?P<s7>\[.*]);(?P<s7_2>\[.*])scale=103:103,setsar=1:1(?P<s8>\[.*]);(?P<s6_2>\[.*])scale=102:102,setsar=1:1(?P<s9>\[.*]);(?P<s9_2>\[.*])(?P<s8_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2`)
 	require.Regexp(t, reg, str.FilterComplex())
 	params := getParams(reg, str.FilterComplex())
@@ -62,7 +62,7 @@ func TestMoreThanOneInput(t *testing.T) {
 
 	ov1 := NewOverlayIntoMiddleFilterNode(bg, fg)
 
-	str := Select(ov1, "out.mp4", nil)
+	str := Select([]INode{ov1}, "out.mp4", nil)
 	reg := regexp.MustCompile(`(?P<s1>\[.*])scale=100:100,setsar=1:1,colorkey=#00ff00:0\.5(?P<s2>\[.*]);(?P<s3>\[.*])boxblur=luma_radius=min\(w\\,h\)/5:chroma_radius=min\(cw\\,ch\)/5:luma_power=1,scale=200:200,setsar=1:1(?P<s4>\[.*]);(?P<s4_2>\[.*])(?P<s2_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2`)
 	require.Regexp(t, reg, str)
 
@@ -84,7 +84,7 @@ func TestSelectStream_1(t *testing.T) {
 
 	ov2 := NewOverlayIntoMiddleFilterNode(s3, s4)
 
-	str := Select(ov2, "out.mp4", nil, NewMap(ov2))
+	str := Select([]INode{ov2}, "out.mp4", nil, NewMap(ov2))
 
 	reg := regexp.MustCompile(`(?P<s1>\[.*])split(?P<s2>\[.*])(?P<s3>\[.*]);(?P<s3_2>\[.*])scale=101:101,setsar=1:1(?P<s4>\[.*]);(?P<s2_2>\[.*])scale=100:100,setsar=1:1(?P<s5>\[.*]);(?P<s5_2>\[.*])(?P<s4_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2,split(?P<s6>\[.*])(?P<s7>\[.*]);(?P<s7_2>\[.*])scale=103:103,setsar=1:1(?P<s8>\[.*]);(?P<s6_2>\[.*])scale=102:102,setsar=1:1(?P<s9>\[.*]);(?P<s9_2>\[.*])(?P<s8_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2(?P<s10>\[.*])`)
 	require.Regexp(t, reg, str)
@@ -113,7 +113,7 @@ func TestSelectStream_2(t *testing.T) {
 
 	ov2 := NewOverlayIntoMiddleFilterNode(s3, s4)
 
-	str := Select(ov2, "out.mp4", nil)
+	str := Select([]INode{ov2}, "out.mp4", nil)
 
 	reg := regexp.MustCompile(`(?P<s1>\[.*])scale=101:101,setsar=1:1(?P<s2>\[.*]);(?P<s3>\[.*])scale=100:100,setsar=1:1(?P<s4>\[.*]);(?P<s4_2>\[.*])(?P<s2_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2,split(?P<s5>\[.*])(?P<s6>\[.*]);(?P<s6_2>\[.*])scale=103:103,setsar=1:1(?P<s7>\[.*]);(?P<s5_2>\[.*])scale=102:102,setsar=1:1(?P<s8>\[.*]);(?P<s8_2>\[.*])(?P<s7_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2`)
 	require.Regexp(t, reg, str)
@@ -134,7 +134,7 @@ func TestMap(t *testing.T) {
 	s1 := NewScaleFilterNode(i1, 400, 400, true)
 	s2 := NewDrawBoxFilter(s1, 0, 0, 400, 70, "#00ff00", "fill")
 
-	str := Select(s2, "out.mp4", nil, NewMap(i2, "a"))
+	str := Select([]INode{s2}, "out.mp4", nil, NewMap(i2, "a"))
 	require.Equal(t, "-t", str[0])
 	require.Equal(t, "00:00:05", str[1])
 	require.Equal(t, "-i", str[2])
@@ -162,7 +162,7 @@ func TestCurves(t *testing.T) {
 	scaledBlurred := NewScaleFilterNode(blurred, 1200, 1600, true)
 
 	o := NewCurvesFilter(NewOverlayIntoMiddleFilterNode(scaledBlurred, scaled), "vintage")
-	str := Select(o, "out.mp4", nil)
+	str := Select([]INode{o}, "out.mp4", nil)
 
 	//-t 00:00:10 -i vid.mp4\s*-filter_complex '
 
@@ -203,15 +203,54 @@ func TestSelectMoreThanOneStream(t *testing.T) {
 	fmt.Println(res)
 }
 
-func TestCurvesWithTimeline(t *testing.T) {
-	i := NewInputNode("./test_assets/test-vid.mp4", nil, nil)
-	c := NewCurvesFilter(i, "vintage")
-	c.Since(3)
-	res := NewScaleFilterNode(c, 100, 100, true)
+func TestWithTimeline(t *testing.T) {
+	t.Run("apply vintage until the end", func(t *testing.T) {
+		i := NewInputNode("./test_assets/test-vid.mp4", nil, nil)
+		c := NewCurvesFilter(i, "vintage")
+		c.Since(3)
+		res := NewScaleFilterNode(c, 100, 100, true)
 
-	exec := NewFfmpegExecutor(nil, "out.mp4", nil)
-	args := exec.ToFfmpeg(res)
+		executor := NewFfmpegExecutor(nil, "out.mp4", nil)
+		args := executor.ToFfmpeg(res)
 
-	// [0:0]curves=preset=vintage:enable='between(t, 1,5)',scale=100:100,setsar=1:1
-	require.Equal(t, `[0:0]curves=preset=vintage:enable='gte(t, 3.00)',scale=100:100,setsar=1:1`, args.FilterComplex())
+		require.Equal(t, `[0:0]curves=preset=vintage:enable='gte(t, 3.00)',scale=100:100,setsar=1:1`, args.FilterComplex())
+	})
+
+	t.Run("apply negative then back to normal", func(t *testing.T) {
+		i := NewInputNode("./test_assets/test-vid.mp4", nil, nil)
+		text1 := NewDrawTextFilter(i, "now it is normal", "", "(w-text_w)/2", "0", 40, 30)
+		text1.Until(3)
+
+		c := NewCurvesFilter(text1, "negative")
+		c.Since(3)
+		c.Until(5)
+
+		text2 := NewDrawTextFilter(c, "now it is negative", "", "(w-text_w)/2", "0", 40, 30)
+		text2.Since(3)
+		text2.Until(5)
+
+		text3 := NewDrawTextFilter(text2, "now it is back to normal", "", "(w-text_w)/2", "0", 40, 20)
+		text3.Since(5)
+
+		res := NewScaleFilterNode(text3, 350, 350, true)
+
+		executor := NewFfmpegExecutor(nil, "out.mp4", nil)
+		args := executor.ToFfmpeg(res)
+
+		require.Equal(t, `[0:0]drawtext=expansion=none:text=''now it is normal'':fontcolor=black:fontsize=30:x=(w-text_w)/2:y=(40-text_h)/2+0:enable='lte(t, 3.00)',curves=preset=negative:enable='between(t, 3.00, 5.00)',drawtext=expansion=none:text=''now it is negative'':fontcolor=black:fontsize=30:x=(w-text_w)/2:y=(40-text_h)/2+0:enable='between(t, 3.00, 5.00)',drawtext=expansion=none:text=''now it is back to normal'':fontcolor=black:fontsize=20:x=(w-text_w)/2:y=(40-text_h)/2+0:enable='gte(t, 5.00)',scale=350:350,setsar=1:1`, args.FilterComplex())
+	})
+}
+
+func TestAudioStreams(t *testing.T) {
+	t.Run("aecho input audio", func(t *testing.T) {
+		inputFile := NewInputNode("./test_assets/test-vid.mp4", nil, nil)
+
+		var audio INode = NewSelectStreamNode(inputFile, AudioStream)
+		audio = NewAechoFilter(audio, 0.5, 0.9, 1000, 0.3)
+
+		scaled := NewScaleFilterNode(inputFile, 300, 300, true)
+
+		cmd := Select([]INode{scaled, audio}, "out.mp4", nil)
+		require.Equal(t, `[0:a]aecho=in_gain=0.50:out_gain=0.90:delays=1000:decays=0.30;[0:0]scale=300:300,setsar=1:1`, cmd.FilterComplex())
+	})
 }

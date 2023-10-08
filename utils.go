@@ -2,6 +2,7 @@ package ffmpegtree
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -13,6 +14,15 @@ func fmtDuration(d time.Duration) string {
 	d -= m * time.Minute
 	s := d / time.Second
 	return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
+}
+
+func escapeText(t string) string {
+	t = strings.ReplaceAll(t, "\\", "\\\\")
+	t = strings.ReplaceAll(t, "\"", "\\\"")
+	t = strings.ReplaceAll(t, "'", "'\\\\\\''")
+	t = strings.ReplaceAll(t, "%", "\\%")
+	t = strings.ReplaceAll(t, ":", "\\:")
+	return "'" + t + "'"
 }
 
 var x = 0

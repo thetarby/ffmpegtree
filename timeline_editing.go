@@ -38,7 +38,7 @@ func (n *TimelineAcceptingFilterNode) EnableExpr() string {
 	}
 
 	// if only until is set
-	return fmt.Sprintf("'lte(t, %.2f)'", *n.until)
+	return fmt.Sprintf("lte(t, %.2f)", *n.until)
 }
 
 func NewTimelineAcceptingFilterNode(children []INode, outStreamName string) *TimelineAcceptingFilterNode {

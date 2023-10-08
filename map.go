@@ -59,8 +59,8 @@ func NewMap(fromNode INode, opts ...string) IMap {
 	return nil
 }
 
-func Select(tree INode, outName string, outputOptions []string, maps ...IMap) FfmpegCommad {
+func Select(nodes []INode, outName string, outputOptions []string, maps ...IMap) FfmpegCommand {
 	exec := NewFfmpegExecutor(maps, outName, outputOptions)
-	res := exec.ToFfmpeg(tree)
+	res := exec.ToFfmpeg(nodes...)
 	return res
 }
