@@ -17,15 +17,15 @@ import (
  *
  */
 func getParams(regEx *regexp.Regexp, str string) (paramsMap map[string]string) {
-    match := regEx.FindStringSubmatch(str)
+	match := regEx.FindStringSubmatch(str)
 
-    paramsMap = make(map[string]string)
-    for i, name := range regEx.SubexpNames() {
-        if i > 0 && i <= len(match) {
-            paramsMap[name] = match[i]
-        }
-    }
-    return paramsMap
+	paramsMap = make(map[string]string)
+	for i, name := range regEx.SubexpNames() {
+		if i > 0 && i <= len(match) {
+			paramsMap[name] = match[i]
+		}
+	}
+	return paramsMap
 }
 
 func TestSplitNode(t *testing.T) {
@@ -85,7 +85,7 @@ func TestSelectStream_1(t *testing.T) {
 	ov2 := NewOverlayIntoMiddleFilterNode(s3, s4)
 
 	str := Select(ov2, "out.mp4", nil, NewMap(ov2))
-	
+
 	reg := regexp.MustCompile(`(?P<s1>\[.*])split(?P<s2>\[.*])(?P<s3>\[.*]);(?P<s3_2>\[.*])scale=101:101,setsar=1:1(?P<s4>\[.*]);(?P<s2_2>\[.*])scale=100:100,setsar=1:1(?P<s5>\[.*]);(?P<s5_2>\[.*])(?P<s4_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2,split(?P<s6>\[.*])(?P<s7>\[.*]);(?P<s7_2>\[.*])scale=103:103,setsar=1:1(?P<s8>\[.*]);(?P<s6_2>\[.*])scale=102:102,setsar=1:1(?P<s9>\[.*]);(?P<s9_2>\[.*])(?P<s8_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2(?P<s10>\[.*])`)
 	require.Regexp(t, reg, str)
 	params := getParams(reg, str.FilterComplex())
@@ -114,7 +114,7 @@ func TestSelectStream_2(t *testing.T) {
 	ov2 := NewOverlayIntoMiddleFilterNode(s3, s4)
 
 	str := Select(ov2, "out.mp4", nil)
-	
+
 	reg := regexp.MustCompile(`(?P<s1>\[.*])scale=101:101,setsar=1:1(?P<s2>\[.*]);(?P<s3>\[.*])scale=100:100,setsar=1:1(?P<s4>\[.*]);(?P<s4_2>\[.*])(?P<s2_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2,split(?P<s5>\[.*])(?P<s6>\[.*]);(?P<s6_2>\[.*])scale=103:103,setsar=1:1(?P<s7>\[.*]);(?P<s5_2>\[.*])scale=102:102,setsar=1:1(?P<s8>\[.*]);(?P<s8_2>\[.*])(?P<s7_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2`)
 	require.Regexp(t, reg, str)
 	params := getParams(reg, str.FilterComplex())
@@ -167,7 +167,7 @@ func TestCurves(t *testing.T) {
 	//-t 00:00:10 -i vid.mp4\s*-filter_complex '
 
 	reg := regexp.MustCompile(`(?P<s1>\[.*])setpts=0.90909094\*PTS,scale=1200:-2,setsar=1:1,split(?P<s2>\[.*])(?P<s3>\[.*]);(?P<s3_2>\[.*])boxblur=luma_radius=min\(w\\,h\)/5:chroma_radius=min\(cw\\,ch\)/5:luma_power=1,scale=1200:1600,setsar=1:1(?P<s4>\[.*]);(?P<s4_2>\[.*])(?P<s2_2>\[.*])overlay=main_w/2-overlay_w/2:main_h/2-overlay_h/2,curves=preset=vintage`)
-	
+
 	require.Equal(t, "-t", str[0])
 	require.Equal(t, "00:00:10", str[1])
 	require.Equal(t, "-i", str[2])
@@ -187,10 +187,9 @@ func TestSelectMoreThanOneStream(t *testing.T) {
 	var inVStream INode = NewVideoSpeedFilter(in, float32(1.0/vs))
 	var scaledInVStream INode = NewScaleFilterNode(inVStream, 100, 100, false)
 	inVStreamFinal := NewScaleFilterNode(scaledInVStream, 10, 10, false)
-	
+
 	var differVStream INode = NewScaleFilterNode(scaledInVStream, 200, 200, false)
 	differVStream = NewScaleFilterNode(differVStream, 300, 300, false)
-
 
 	exec := NewFfmpegExecutor(nil, "out.mp4", nil)
 	res := exec.ToFfmpeg(differVStream, inVStreamFinal)
@@ -209,10 +208,10 @@ func TestCurvesWithTimeline(t *testing.T) {
 	c := NewCurvesFilter(i, "vintage")
 	c.Since(3)
 	res := NewScaleFilterNode(c, 100, 100, true)
-	
+
 	exec := NewFfmpegExecutor(nil, "out.mp4", nil)
 	args := exec.ToFfmpeg(res)
-	
+
 	// [0:0]curves=preset=vintage:enable='between(t, 1,5)',scale=100:100,setsar=1:1
 	require.Equal(t, `[0:0]curves=preset=vintage:enable='gte(t, 3.00)',scale=100:100,setsar=1:1`, args.FilterComplex())
 }

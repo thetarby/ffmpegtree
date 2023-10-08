@@ -80,9 +80,9 @@ func (s *SelectStreamNode) GetOutStreamName() string {
 
 func NewSelectStreamNode(input IInputNode, idx int) *SelectStreamNode {
 	str := strconv.Itoa(idx)
-	if idx == AudioStream{
+	if idx == AudioStream {
 		str = "a"
-	}else if idx == VideoStream{
+	} else if idx == VideoStream {
 		str = "v"
 	}
 

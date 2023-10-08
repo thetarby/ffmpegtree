@@ -55,7 +55,7 @@ func cmp(p1, p2 string) (float32, error) {
 	if err := json.Unmarshal(buf.Bytes(), &m); err != nil {
 		return 0, errors.New(buf.String())
 	}
-	if m.Error != ""{
+	if m.Error != "" {
 		return 0, errors.New(m.Error)
 	}
 
@@ -144,7 +144,7 @@ func TestResultsAreNotSimilar(t *testing.T) {
 	res := NewScaleFilterNode(d, 100, 100, true)
 
 	args := Select(res, videoFile, nil)
-	
+
 	runFFmpeg(args)
 	sim, err := cmp(videoFile, "./test_assets/results/curves-applied.mp4")
 	require.NoError(t, err)

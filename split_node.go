@@ -29,7 +29,7 @@ func (s *SplitNode) GetOutStreamName() string {
 }
 
 func (b *SplitNode) FilterString() string {
-	if b.fanOut > 2{
+	if b.fanOut > 2 {
 		return fmt.Sprintf("split=%v", b.fanOut)
 	}
 	return "split"
