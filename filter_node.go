@@ -1,6 +1,18 @@
 package ffmpegtree
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
+
+type Expression string
+
+func (e Expression) String() string {
+	str := string(e)
+	str = strings.ReplaceAll(str, "\\", "\\\\")
+	str = strings.ReplaceAll(str, "'", "\\'")
+	return "'" + str + "'"
+}
 
 // Streamer nodes are nodes which outputs a stream such as filter nodes or
 // select stream nodes (which streams from an input node at selected index)
@@ -70,7 +82,6 @@ func NewScaleFilterNode(input INode, w, h int, setsar bool) *ScaleFilterNode {
 	}
 }
 
-/* Overlay Filter */
 type OverlayIntoMiddleFilterNode struct {
 	BaseFilterNode
 }
@@ -87,18 +98,41 @@ func NewOverlayIntoMiddleFilterNode(input1, input2 INode) *OverlayIntoMiddleFilt
 
 type OverlayFilterNode struct {
 	BaseFilterNode
-	x, y string
+	x, y Expression
 }
 
 func (n *OverlayFilterNode) FilterString() string {
-	return fmt.Sprintf("overlay=%v:%v", n.x, n.y)
+	return fmt.Sprintf("overlay=x=%v:y=%v", n.x, n.y)
 }
 
-func NewOverlayFilterNode(input1, input2 INode, x, y string) *OverlayFilterNode {
+func NewOverlayFilterNode(input1, input2 INode, x, y Expression) *OverlayFilterNode {
 	return &OverlayFilterNode{
 		BaseFilterNode: *NewBaseFilterNode([]INode{input1, input2}, randStr()),
 		x:              x,
 		y:              y,
+	}
+}
+
+type CropFilter struct {
+	BaseFilterNode
+	Width  int
+	Height int
+
+	CropOffsetXExp Expression
+	CropOffsetYExp Expression
+}
+
+func (s *CropFilter) FilterString() string {
+	return fmt.Sprintf("crop=%v:%v:x=%v:y=%v", s.Width, s.Height, s.CropOffsetXExp, s.CropOffsetYExp)
+}
+
+func NewCropFilter(input INode, w, h int, x, y Expression) *CropFilter {
+	return &CropFilter{
+		BaseFilterNode: *NewBaseFilterNode([]INode{input}, randStr()),
+		Width:          w,
+		Height:         h,
+		CropOffsetXExp: x,
+		CropOffsetYExp: y,
 	}
 }
 
@@ -230,22 +264,96 @@ func NewAtempoFilter(input INode, speed float32) *AtempoFilter {
 }
 
 type DrawTextFilter struct {
-	BaseFilterNode
+	TimelineAcceptingFilterNode
 	x, y, text, fontColor string
-	fontSize              int
+	fontSize, boxHeight   int
 }
 
 func (f *DrawTextFilter) FilterString() string {
-	return `drawtext=text='Test Text':fontsize=h/30:x=(w-text_w)/2:y=(h-text_h*2)`
+	color := "black"
+	if f.fontColor != "" {
+		color = f.fontColor
+	}
+
+	y := fmt.Sprintf("(%v-text_h)/2+%v", f.boxHeight, f.y)
+	if f.boxHeight == 0 {
+		y = fmt.Sprintf("%v", f.y)
+	}
+
+	return fmt.Sprintf("drawtext=expansion=none:text='%v':fontcolor=%v:fontsize=%v:x=%v:y=%v", escapeText(f.text), color, f.fontSize, f.x, y)
 }
 
-func NewDrawTextFilter(input INode, x, y, text, fontColor string, fontSize int) *DrawTextFilter {
+func NewDrawTextFilter(input INode, text, fontColor, x, y string, boxHeight, fontSize int) *DrawTextFilter {
 	return &DrawTextFilter{
-		BaseFilterNode: *NewBaseFilterNode([]INode{input}, randStr()),
-		x:              x,
-		y:              y,
-		text:           text,
-		fontColor:      fontColor,
-		fontSize:       fontSize,
+		TimelineAcceptingFilterNode: *NewTimelineAcceptingFilterNode([]INode{input}, randStr()),
+		x:                           x,
+		y:                           y,
+		text:                        text,
+		fontColor:                   fontColor,
+		fontSize:                    fontSize,
+		boxHeight:                   boxHeight,
+	}
+}
+
+type FpsFilter struct {
+	BaseFilterNode
+	fps int
+}
+
+func (s *FpsFilter) FilterString() string {
+	return fmt.Sprintf(`fps=%v`, s.fps)
+}
+
+func NewFpsFilterNode(inp INode, fps int) *FpsFilter {
+	return &FpsFilter{
+		BaseFilterNode: *NewBaseFilterNode([]INode{inp}, randStr()),
+		fps:            fps,
+	}
+}
+
+type VolumeFilter struct {
+	BaseFilterNode
+	vol float32
+}
+
+func (s *VolumeFilter) FilterString() string {
+	return fmt.Sprintf(`volume=%.2f`, s.vol)
+}
+
+func NewVolumeFilter(inp INode, volume float32) *VolumeFilter {
+	return &VolumeFilter{
+		BaseFilterNode: *NewBaseFilterNode([]INode{inp}, randStr()),
+		vol:            volume,
+	}
+}
+
+type AechoFilter struct {
+	BaseFilterNode
+	inGain, outGain float32
+	delays          uint
+	decays          float32
+}
+
+func (s *AechoFilter) FilterString() string {
+	return fmt.Sprintf(`aecho=in_gain=%.2f:out_gain=%.2f:delays=%v:decays=%.2f`, s.inGain, s.outGain, s.delays, s.decays)
+}
+
+func NewAechoFilter(inp INode, inGain, outGain float32, delays uint, decays float32) *AechoFilter {
+	return &AechoFilter{
+		BaseFilterNode: *NewBaseFilterNode([]INode{inp}, randStr()),
+		inGain:         inGain, outGain: outGain, delays: delays, decays: decays}
+}
+
+type AformatFilter struct {
+	BaseFilterNode
+}
+
+func (s *AformatFilter) FilterString() string {
+	return `aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo`
+}
+
+func NewAformatFilter(inp INode) *AformatFilter {
+	return &AformatFilter{
+		BaseFilterNode: *NewBaseFilterNode([]INode{inp}, randStr()),
 	}
 }

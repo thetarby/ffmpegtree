@@ -44,8 +44,8 @@ type FFmpegExecutor struct {
 	outOptions []string
 }
 
-func (e *FFmpegExecutor) ToFfmpeg(nodes... INode) FfmpegCommad {
-	for _, node := range nodes{
+func (e *FFmpegExecutor) ToFfmpeg(nodes ...INode) FfmpegCommand {
+	for _, node := range nodes {
 		// find all IInputNode and assign their indexes. it will affect the order they show up in the output
 		e.setInputIdx(node)
 
@@ -56,7 +56,7 @@ func (e *FFmpegExecutor) ToFfmpeg(nodes... INode) FfmpegCommad {
 		// insert split nodes if a stream is input to more than one node
 		e.insertSplit(node)
 	}
-	
+
 	// each node can access its inputs but cannot access to nodes which depends on itself. traverse tree
 	// and save dependencies in a hashmap structure. it will be useful while executing tree.
 	e.dependents = GetDependents(nodes...)
@@ -88,17 +88,17 @@ func (e *FFmpegExecutor) ToFfmpeg(nodes... INode) FfmpegCommad {
 }
 
 func (e *FFmpegExecutor) toFfmpeg() string {
-	// NOTE: we are traversing tree in bfs manner and as lons as each node only has 1 dependents, it normally guarentees that a filter or a stream variable 
+	// NOTE: we are traversing tree in bfs manner and as lons as each node only has 1 dependents, it normally guarentees that a filter or a stream variable
 	// shows up before all of its dependents in the output, avoiding 'forward declarations, which ffmpeg script does not support'.
-	// It is not guaranteed for split nodes because they could have more than one dependents. A split node may have a child node 
-	// which still has a dependent unprocessed node. To guarantee that the node which is splitted comes before all of its 
-	// dependents, we need to process its split node after all of its dependents are queued. 
-	
-	// nodeEncounters is a mapping from nodes to their fan out number(dependent count). Each time a node is popped 
+	// It is not guaranteed for split nodes because they could have more than one dependents. A split node may have a child node
+	// which still has a dependent unprocessed node. To guarantee that the node which is splitted comes before all of its
+	// dependents, we need to process its split node after all of its dependents are queued.
+
+	// nodeEncounters is a mapping from nodes to their fan out number(dependent count). Each time a node is popped
 	// up from queue, its corresponding mapping is decreased by one and when it hits 0, it means the last dependent
 	// is processed hence we can proceed to process the current node and add it to output
 	nodeEncounters := make(map[string]int)
-	
+
 	for len(e.q) > 0 {
 		tree := e.q[0]
 		e.q = e.q[1:]
@@ -108,15 +108,15 @@ func (e *FFmpegExecutor) toFfmpeg() string {
 
 		switch tree.(type) {
 		case IFilterNode:
-			if _, ok := nodeEncounters[tree.GetID()]; !ok{
+			if _, ok := nodeEncounters[tree.GetID()]; !ok {
 				nodeEncounters[tree.GetID()] = len(e.dependents.Get(tree))
 			}
-			
-			if nodeEncounters[tree.GetID()] = nodeEncounters[tree.GetID()] - 1; nodeEncounters[tree.GetID()] > 0{
-				// if not 0 delay processing of the node since it migth still have unprocessed dependents
+
+			if nodeEncounters[tree.GetID()] = nodeEncounters[tree.GetID()] - 1; nodeEncounters[tree.GetID()] > 0 {
+				// if not 0 delay processing of the node since it might still have unprocessed dependents
 				continue
 			}
-			
+
 			// every IFilterNode can be treated as a chain of IFilterNode's even if it consists of only one node
 			c, newTree := e.toChain(tree)
 			e.visited[tree.GetID()] = true
@@ -135,14 +135,14 @@ func (e *FFmpegExecutor) toFfmpeg() string {
 
 			f += c.ToString(len(e.dependents.Get(c[0])) > 0 || e.isMapped(c[0]))
 			e.acc = append([]string{f}, e.acc...)
-			
+
 		case IInputNode:
 			e.visited[tree.GetID()] = true
 		}
 
 		e.q = append(e.q, tree.GetInputs()...)
 	}
-	
+
 	return strings.Join(e.acc, ";")
 }
 
@@ -200,7 +200,7 @@ func (e *FFmpegExecutor) insertSelectStream(t INode) {
 func (e *FFmpegExecutor) insertSplit(t INode) {
 	d := GetDependents(t)
 	for _, currNode := range d.Keys() {
-		if _, ok := currNode.(ISplitNode); ok{
+		if _, ok := currNode.(ISplitNode); ok {
 			continue
 		}
 
@@ -225,10 +225,15 @@ func (e *FFmpegExecutor) insertSplit(t INode) {
 
 // setInputIdx traverses the graph from a given node and discovers all input nodes and assign them an index.
 func (e *FFmpegExecutor) setInputIdx(t INode) {
+	if i, ok := t.(IInputNode); ok && !e.isInInputs(i) {
+		e.inputs = append(e.inputs, i)
+		return
+	}
+
 	d := GetDependents(t)
 	for _, s := range d.Keys() {
 		in, ok := s.(IInputNode)
-		if ok && !e.isInInputs(in){
+		if ok && !e.isInInputs(in) {
 			in.SetInputIdx(len(e.inputs))
 			e.inputs = append(e.inputs, in)
 		}
@@ -278,11 +283,11 @@ func NewFfmpegExecutor(maps []IMap, outName string, outOptions []string) *FFmpeg
 	}
 }
 
-type FfmpegCommad []string
+type FfmpegCommand []string
 
-func (cmd *FfmpegCommad) FilterComplex() string{
-	for i, arg := range *cmd{
-		if strings.Contains(arg, "filter_complex"){
+func (cmd *FfmpegCommand) FilterComplex() string {
+	for i, arg := range *cmd {
+		if strings.Contains(arg, "filter_complex") {
 			return []string(*cmd)[i+1]
 		}
 	}

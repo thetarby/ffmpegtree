@@ -11,13 +11,18 @@ type IInputNode interface {
 	ToString() []string
 	GetInputIdx() int
 	SetInputIdx(int)
+	GetInputName() string
 }
+
+// InputNode implements IInputNode
+var _ IInputNode = &InputNode{}
 
 type InputNode struct {
 	BaseNode
 	InputName   string
 	Offset, Len *time.Duration
 	inputIdx    int
+	isLoop      bool
 }
 
 func (i *InputNode) ToString() []string {
@@ -28,6 +33,9 @@ func (i *InputNode) ToString() []string {
 	}
 	if i.Len != nil {
 		res = append([]string{"-t", fmtDuration(*i.Len)}, res...)
+	}
+	if i.isLoop {
+		res = append([]string{"-stream_loop", "-1"}, res...)
 	}
 
 	return res
@@ -41,12 +49,29 @@ func (i *InputNode) SetInputIdx(idx int) {
 	i.inputIdx = idx
 }
 
+func (i *InputNode) GetInputName() string {
+	return i.InputName
+}
+
 func NewInputNode(name string, len, offset *time.Duration) *InputNode {
 	return &InputNode{
 		BaseNode:  NewBaseNode(nil),
 		InputName: name,
 		Offset:    offset,
 		Len:       len,
+	}
+}
+
+// NewAudioInputNode opens an input file and selects audio stream.
+func NewAudioInputNode(name string, len, offset *time.Duration) INode {
+	return NewSelectStreamNode(NewInputNode(name, len, offset), AudioStream)
+}
+
+func NewInputNodeLoop(name string) *InputNode {
+	return &InputNode{
+		BaseNode:  NewBaseNode(nil),
+		InputName: name,
+		isLoop:    true,
 	}
 }
 
@@ -80,9 +105,9 @@ func (s *SelectStreamNode) GetOutStreamName() string {
 
 func NewSelectStreamNode(input IInputNode, idx int) *SelectStreamNode {
 	str := strconv.Itoa(idx)
-	if idx == AudioStream{
+	if idx == AudioStream {
 		str = "a"
-	}else if idx == VideoStream{
+	} else if idx == VideoStream {
 		str = "v"
 	}
 

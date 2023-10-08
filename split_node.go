@@ -28,9 +28,9 @@ func (s *SplitNode) GetOutStreamName() string {
 	return fmt.Sprintf("%v_%v", s.OutStreamName, s.called%s.fanOut)
 }
 
-func (b *SplitNode) FilterString() string {
-	if b.fanOut > 2{
-		return fmt.Sprintf("split=%v", b.fanOut)
+func (s *SplitNode) FilterString() string {
+	if s.fanOut > 2 {
+		return fmt.Sprintf("split=%v", s.fanOut)
 	}
 	return "split"
 }

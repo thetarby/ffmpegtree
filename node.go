@@ -35,10 +35,10 @@ func NewBaseNode(children []INode) BaseNode {
 	}
 }
 
-func GetDependents(t... INode) *DependentsMap {
+func GetDependents(t ...INode) *DependentsMap {
 	res := NewDependentsMap()
 	visited := make(map[string]bool)
-	for _, n := range t{
+	for _, n := range t {
 		getDependents(n, res, visited)
 	}
 
