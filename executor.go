@@ -44,7 +44,7 @@ type FFmpegExecutor struct {
 	outOptions []string
 }
 
-func (e *FFmpegExecutor) ToFfmpeg(nodes ...INode) FfmpegCommad {
+func (e *FFmpegExecutor) ToFfmpeg(nodes ...INode) FfmpegCommand {
 	for _, node := range nodes {
 		// find all IInputNode and assign their indexes. it will affect the order they show up in the output
 		e.setInputIdx(node)
@@ -113,7 +113,7 @@ func (e *FFmpegExecutor) toFfmpeg() string {
 			}
 
 			if nodeEncounters[tree.GetID()] = nodeEncounters[tree.GetID()] - 1; nodeEncounters[tree.GetID()] > 0 {
-				// if not 0 delay processing of the node since it migth still have unprocessed dependents
+				// if not 0 delay processing of the node since it might still have unprocessed dependents
 				continue
 			}
 
@@ -225,6 +225,11 @@ func (e *FFmpegExecutor) insertSplit(t INode) {
 
 // setInputIdx traverses the graph from a given node and discovers all input nodes and assign them an index.
 func (e *FFmpegExecutor) setInputIdx(t INode) {
+	if i, ok := t.(IInputNode); ok && !e.isInInputs(i) {
+		e.inputs = append(e.inputs, i)
+		return
+	}
+
 	d := GetDependents(t)
 	for _, s := range d.Keys() {
 		in, ok := s.(IInputNode)
@@ -278,9 +283,9 @@ func NewFfmpegExecutor(maps []IMap, outName string, outOptions []string) *FFmpeg
 	}
 }
 
-type FfmpegCommad []string
+type FfmpegCommand []string
 
-func (cmd *FfmpegCommad) FilterComplex() string {
+func (cmd *FfmpegCommand) FilterComplex() string {
 	for i, arg := range *cmd {
 		if strings.Contains(arg, "filter_complex") {
 			return []string(*cmd)[i+1]
