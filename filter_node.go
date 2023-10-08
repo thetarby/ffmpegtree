@@ -82,7 +82,6 @@ func NewScaleFilterNode(input INode, w, h int, setsar bool) *ScaleFilterNode {
 	}
 }
 
-/* Overlay Filter */
 type OverlayIntoMiddleFilterNode struct {
 	BaseFilterNode
 }

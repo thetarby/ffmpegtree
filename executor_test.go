@@ -3,6 +3,7 @@ package ffmpegtree
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -210,8 +211,7 @@ func TestWithTimeline(t *testing.T) {
 		c.Since(3)
 		res := NewScaleFilterNode(c, 100, 100, true)
 
-		executor := NewFfmpegExecutor(nil, "out.mp4", nil)
-		args := executor.ToFfmpeg(res)
+		args := Select([]INode{res}, "out.mp4", nil)
 
 		require.Equal(t, `[0:0]curves=preset=vintage:enable='gte(t, 3.00)',scale=100:100,setsar=1:1`, args.FilterComplex())
 	})
@@ -234,8 +234,7 @@ func TestWithTimeline(t *testing.T) {
 
 		res := NewScaleFilterNode(text3, 350, 350, true)
 
-		executor := NewFfmpegExecutor(nil, "out.mp4", nil)
-		args := executor.ToFfmpeg(res)
+		args := Select([]INode{res}, "out.mp4", nil)
 
 		require.Equal(t, `[0:0]drawtext=expansion=none:text=''now it is normal'':fontcolor=black:fontsize=30:x=(w-text_w)/2:y=(40-text_h)/2+0:enable='lte(t, 3.00)',curves=preset=negative:enable='between(t, 3.00, 5.00)',drawtext=expansion=none:text=''now it is negative'':fontcolor=black:fontsize=30:x=(w-text_w)/2:y=(40-text_h)/2+0:enable='between(t, 3.00, 5.00)',drawtext=expansion=none:text=''now it is back to normal'':fontcolor=black:fontsize=20:x=(w-text_w)/2:y=(40-text_h)/2+0:enable='gte(t, 5.00)',scale=350:350,setsar=1:1`, args.FilterComplex())
 	})
